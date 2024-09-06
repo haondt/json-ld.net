@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using JsonLD.Core;
 using JsonLD.Impl;
 using Newtonsoft.Json.Linq;
@@ -13,12 +14,12 @@ namespace JsonLD.Core
     public class JsonLdProcessor
     {
         /// <exception cref="JsonLD.Core.JsonLdError"></exception>
-        public static JObject Compact(JToken input, JToken context, JsonLdOptions opts)
+        public static async Task<JObject> CompactAsync(JToken input, JToken context, JsonLdOptions opts)
         {
             // 1)
             // TODO: look into java futures/promises
             // 2-6) NOTE: these are all the same steps as in expand
-            JToken expanded = Expand(input, opts);
+            JToken expanded = await ExpandAsync(input, opts).ConfigureAwait(false); 
             // 7)
             if (context is JObject && ((IDictionary<string, JToken>)context).ContainsKey(
                 "@context"))
@@ -26,7 +27,7 @@ namespace JsonLD.Core
                 context = ((JObject)context)["@context"];
             }
             Context activeCtx = new Context(opts);
-            activeCtx = activeCtx.Parse(context);
+            activeCtx = await activeCtx.ParseAsync(context).ConfigureAwait(false);
             // 8)
             JToken compacted = new JsonLdApi(opts).Compact(activeCtx, null, expanded, opts.GetCompactArrays
                 ());
@@ -61,10 +62,8 @@ namespace JsonLD.Core
         }
 
         /// <exception cref="JsonLD.Core.JsonLdError"></exception>
-        public static JArray Expand(JToken input, JsonLdOptions opts)
+        public static async Task<JArray> ExpandAsync(JToken input, JsonLdOptions opts)
         {
-            // 1)
-            // TODO: look into java futures/promises
 
             // 2) verification of DOMString IRI
             bool isIriString = input.Type == JTokenType.String;
@@ -90,7 +89,7 @@ namespace JsonLD.Core
             {
                 try
                 {
-                    RemoteDocument tmp = opts.documentLoader.LoadDocument((string)input);
+                    RemoteDocument tmp = await opts.documentLoader.LoadDocumentAsync((string)input).ConfigureAwait(false);
                     input = tmp.document;
                 }
                 catch (Exception e)
@@ -118,13 +117,13 @@ namespace JsonLD.Core
                 {
                     exCtx = (JObject)((IDictionary<string, JToken>)exCtx)["@context"];
                 }
-                activeCtx = activeCtx.Parse(exCtx);
+                activeCtx = await activeCtx.ParseAsync(exCtx).ConfigureAwait(false);
             }
             // 5)
             // TODO: add support for getting a context from HTTP when content-type
             // is set to a jsonld compatable format
             // 6)
-            JToken expanded = new JsonLdApi(opts).Expand(activeCtx, input);
+            JToken expanded = await new JsonLdApi(opts).ExpandAsync(activeCtx, input).ConfigureAwait(false);
             // final step of Expansion Algorithm
             if (expanded is JObject && ((IDictionary<string,JToken>)expanded).ContainsKey("@graph") && (
                 (IDictionary<string, JToken>)expanded).Count == 1)
@@ -149,16 +148,16 @@ namespace JsonLD.Core
         }
 
         /// <exception cref="JsonLD.Core.JsonLdError"></exception>
-        public static JArray Expand(JToken input)
+        public static Task<JArray> ExpandAsync(JToken input)
         {
-            return Expand(input, new JsonLdOptions(string.Empty));
+            return ExpandAsync(input, new JsonLdOptions(string.Empty));
         }
 
         /// <exception cref="JsonLD.Core.JsonLdError"></exception>
-        public static JToken Flatten(JToken input, JToken context, JsonLdOptions opts)
+        public static async Task<JToken> FlattenAsync(JToken input, JToken context, JsonLdOptions opts)
         {
             // 2-6) NOTE: these are all the same steps as in expand
-            JArray expanded = Expand(input, opts);
+            JArray expanded = await ExpandAsync(input, opts).ConfigureAwait(false);
             // 7)
             if (context is JObject && ((IDictionary<string, JToken>)context).ContainsKey(
                 "@context"))
@@ -228,7 +227,7 @@ namespace JsonLD.Core
             if (!context.IsNull() && !flattened.IsEmpty())
             {
                 Context activeCtx = new Context(opts);
-                activeCtx = activeCtx.Parse(context);
+                activeCtx = await activeCtx.ParseAsync(context).ConfigureAwait(false);
                 // TODO: only instantiate one jsonldapi
                 JToken compacted = new JsonLdApi(opts).Compact(activeCtx, null, flattened, opts.GetCompactArrays
                     ());
@@ -247,13 +246,13 @@ namespace JsonLD.Core
         }
 
         /// <exception cref="JsonLD.Core.JsonLdError"></exception>
-        public static JToken Flatten(JToken input, JsonLdOptions opts)
+        public static Task<JToken> FlattenAsync(JToken input, JsonLdOptions opts)
         {
-            return Flatten(input, null, opts);
+            return FlattenAsync(input, null, opts);
         }
 
         /// <exception cref="JsonLD.Core.JsonLdError"></exception>
-        public static JObject Frame(JToken input, JToken frame, JsonLdOptions
+        public static async Task<JObject> FrameAsync(JToken input, JToken frame, JsonLdOptions
              options)
         {
             if (frame is JObject)
@@ -261,12 +260,12 @@ namespace JsonLD.Core
                 frame = JsonLdUtils.Clone((JObject)frame);
             }
             // TODO string/IO input
-            JToken expandedInput = Expand(input, options);
-            JArray expandedFrame = Expand(frame, options);
-            JsonLdApi api = new JsonLdApi(expandedInput, options);
+            JToken expandedInput = await ExpandAsync(input, options).ConfigureAwait(false);
+            JArray expandedFrame = await ExpandAsync(frame, options).ConfigureAwait(false);
+            JsonLdApi api = await JsonLdApi.CreateAsync(expandedInput, options).ConfigureAwait(false);
             JArray framed = api.Frame(expandedInput, expandedFrame);
-            Context activeCtx = api.context.Parse(frame["@context"
-                ]);
+            Context activeCtx = await api.context.ParseAsync(frame["@context"
+                ]).ConfigureAwait(false);
             JToken compacted = api.Compact(activeCtx, null, framed);
             if (!(compacted is JArray))
             {
@@ -323,7 +322,7 @@ namespace JsonLD.Core
         /// <?></?>
         /// <param name="callback">(err, output) called once the operation completes.</param>
         /// <exception cref="JsonLDNet.Core.JsonLdError"></exception>
-        public static JToken FromRDF(JToken dataset, JsonLdOptions options)
+        public static Task<JToken> FromRDFAsync(JToken dataset, JsonLdOptions options)
         {
             // handle non specified serializer case
             IRDFParser parser = null;
@@ -341,19 +340,19 @@ namespace JsonLD.Core
                 throw new JsonLdError(JsonLdError.Error.UnknownFormat, options.format);
             }
             // convert from RDF
-            return FromRDF(dataset, options, parser);
+            return FromRDFAsync(dataset, options, parser);
         }
 
         /// <exception cref="JsonLD.Core.JsonLdError"></exception>
-        public static JToken FromRDF(JToken dataset)
+        public static Task<JToken> FromRDFAsync(JToken dataset)
         {
-            return FromRDF(dataset, new JsonLdOptions(string.Empty));
+            return FromRDFAsync(dataset, new JsonLdOptions(string.Empty));
         }
 
         /// <summary>Uses a specific serializer.</summary>
         /// <remarks>Uses a specific serializer.</remarks>
         /// <exception cref="JsonLD.Core.JsonLdError"></exception>
-        public static JToken FromRDF(JToken input, JsonLdOptions options, IRDFParser parser
+        public static async Task<JToken> FromRDFAsync(JToken input, JsonLdOptions options, IRDFParser parser
             )
         {
             RDFDataset dataset = parser.Parse(input);
@@ -370,13 +369,13 @@ namespace JsonLD.Core
                 {
                     if ("compacted".Equals(options.outputForm))
                     {
-                        return Compact(rval, dataset.GetContext(), options);
+                        return await CompactAsync(rval, dataset.GetContext(), options).ConfigureAwait(false);
                     }
                     else
                     {
                         if ("flattened".Equals(options.outputForm))
                         {
-                            return Flatten(rval, dataset.GetContext(), options);
+                            return await FlattenAsync(rval, dataset.GetContext(), options).ConfigureAwait(false);
                         }
                         else
                         {
@@ -389,9 +388,9 @@ namespace JsonLD.Core
         }
 
         /// <exception cref="JsonLD.Core.JsonLdError"></exception>
-        public static JToken FromRDF(JToken input, IRDFParser parser)
+        public static Task<JToken> FromRDFAsync(JToken input, IRDFParser parser)
         {
-            return FromRDF(input, new JsonLdOptions(string.Empty), parser);
+            return FromRDFAsync(input, new JsonLdOptions(string.Empty), parser);
         }
 
         /// <summary>Outputs the RDF dataset found in the given JSON-LD object.</summary>
@@ -404,11 +403,11 @@ namespace JsonLD.Core
         /// <?></?>
         /// <param name="callback">(err, dataset) called once the operation completes.</param>
         /// <exception cref="JsonLDNet.Core.JsonLdError"></exception>
-        public static object ToRDF(JToken input, IJSONLDTripleCallback callback, JsonLdOptions
+        public static async Task<object> ToRDFAsync(JToken input, IJSONLDTripleCallback callback, JsonLdOptions
              options)
         {
-            JToken expandedInput = Expand(input, options);
-            JsonLdApi api = new JsonLdApi(expandedInput, options);
+            JToken expandedInput = await ExpandAsync(input, options).ConfigureAwait(false);
+            JsonLdApi api = await JsonLdApi.CreateAsync(expandedInput, options).ConfigureAwait(false);
             RDFDataset dataset = api.ToRDF();
             // generate namespaces from context
             if (options.useNamespaces)
@@ -457,21 +456,21 @@ namespace JsonLD.Core
         }
 
         /// <exception cref="JsonLD.Core.JsonLdError"></exception>
-        public static object ToRDF(JToken input, JsonLdOptions options)
+        public static Task<object> ToRDFAsync(JToken input, JsonLdOptions options)
         {
-            return ToRDF(input, null, options);
+            return ToRDFAsync(input, null, options);
         }
 
         /// <exception cref="JsonLD.Core.JsonLdError"></exception>
-        public static object ToRDF(JToken input, IJSONLDTripleCallback callback)
+        public static object ToRDFAsync(JToken input, IJSONLDTripleCallback callback)
         {
-            return ToRDF(input, callback, new JsonLdOptions(string.Empty));
+            return ToRDFAsync(input, callback, new JsonLdOptions(string.Empty));
         }
 
         /// <exception cref="JsonLD.Core.JsonLdError"></exception>
-        public static object ToRDF(JToken input)
+        public static object ToRDFAsync(JToken input)
         {
-            return ToRDF(input, new JsonLdOptions(string.Empty));
+            return ToRDFAsync(input, new JsonLdOptions(string.Empty));
         }
 
 
@@ -485,18 +484,18 @@ namespace JsonLD.Core
         /// <param name="callback">(err, normalized) called once the operation completes.</param>
         /// <exception cref="JSONLDProcessingError">JSONLDProcessingError</exception>
         /// <exception cref="JsonLDNet.Core.JsonLdError"></exception>
-        public static object Normalize(JToken input, JsonLdOptions options)
+        public static async Task<object> NormalizeAsync(JToken input, JsonLdOptions options)
         {
             JsonLdOptions opts = options.Clone();
             opts.format = null;
-            RDFDataset dataset = (RDFDataset)ToRDF(input, opts);
+            RDFDataset dataset = (RDFDataset)(await ToRDFAsync(input, opts).ConfigureAwait(false));
             return new JsonLdApi(options).Normalize(dataset);
         }
 
         /// <exception cref="JsonLD.Core.JsonLdError"></exception>
-        public static object Normalize(JToken input)
+        public static Task<object> NormalizeAsync(JToken input)
         {
-            return Normalize(input, new JsonLdOptions(string.Empty));
+            return NormalizeAsync(input, new JsonLdOptions(string.Empty));
         }
     }
 }

@@ -44,11 +44,6 @@ namespace JsonLD.Core
             return contentType;
         }
 
-        /// <exception cref="JsonLDNet.Core.JsonLdError"></exception>
-        public virtual RemoteDocument LoadDocument(string url)
-        {
-            return LoadDocumentAsync(url).ConfigureAwait(false).GetAwaiter().GetResult();
-        }
 
         /// <exception cref="JsonLDNet.Core.JsonLdError"></exception>
         public virtual async Task<RemoteDocument> LoadDocumentAsync(string url)

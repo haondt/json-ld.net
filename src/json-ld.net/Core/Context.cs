@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using JsonLD.Core;
 using JsonLD.Util;
 using Newtonsoft.Json.Linq;
@@ -134,7 +135,7 @@ namespace JsonLD.Core
 		/// <returns></returns>
 		/// <exception cref="JsonLdError">JsonLdError</exception>
 		/// <exception cref="JsonLD.Core.JsonLdError"></exception>
-		internal virtual JsonLD.Core.Context Parse(JToken localContext, List<string> remoteContexts)
+		internal virtual async Task<JsonLD.Core.Context> ParseAsync(JToken localContext, List<string> remoteContexts)
 		{
 			if (remoteContexts == null)
 			{
@@ -183,7 +184,7 @@ namespace JsonLD.Core
                             RemoteDocument rd;
                             try
                             {
-                                rd = this.options.documentLoader.LoadDocument(uri);
+                                rd = await this.options.documentLoader.LoadDocumentAsync(uri).ConfigureAwait(false);
                             }
                             catch (JsonLdError err)
                             {
@@ -204,7 +205,7 @@ namespace JsonLD.Core
 							}
                             eachContext = ((JObject)remoteContext)["@context"];
 							// 3.2.4
-							result = result.Parse(eachContext, remoteContexts);
+							result = await result.ParseAsync(eachContext, remoteContexts).ConfigureAwait(false);
 							// 3.2.5
 							continue;
 						}
@@ -315,9 +316,9 @@ namespace JsonLD.Core
 		}
 
 		/// <exception cref="JsonLD.Core.JsonLdError"></exception>
-		internal virtual JsonLD.Core.Context Parse(JToken localContext)
+		internal virtual Task<JsonLD.Core.Context> ParseAsync(JToken localContext)
 		{
-			return this.Parse(localContext, new List<string>());
+			return this.ParseAsync(localContext, new List<string>());
 		}
 
 		/// <summary>

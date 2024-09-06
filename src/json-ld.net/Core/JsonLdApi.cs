@@ -4,6 +4,7 @@ using JsonLD.Core;
 using JsonLD.Util;
 using Newtonsoft.Json.Linq;
 using System;
+using System.Threading.Tasks;
 
 namespace JsonLD.Core
 {
@@ -23,15 +24,19 @@ namespace JsonLD.Core
         }
 
         /// <exception cref="JsonLD.Core.JsonLdError"></exception>
-        public JsonLdApi(JToken input, JsonLdOptions opts)
+        public static async Task<JsonLdApi> CreateAsync(JToken input, JsonLdOptions opts)
         {
-            Initialize(input, null, opts);
+            var instance = new JsonLdApi();
+            await instance.InitializeAsync(input, null, opts).ConfigureAwait(false);
+            return instance;
         }
 
         /// <exception cref="JsonLD.Core.JsonLdError"></exception>
-        public JsonLdApi(JToken input, JToken context, JsonLdOptions opts)
+        public static async Task<JsonLdApi> CreateAsync(JToken input, JToken context, JsonLdOptions opts)
         {
-            Initialize(input, null, opts);
+            var instance = new JsonLdApi();
+            await instance.InitializeAsync(input, null, opts).ConfigureAwait(false);
+            return instance;
         }
 
         public JsonLdApi(JsonLdOptions opts)
@@ -47,7 +52,7 @@ namespace JsonLD.Core
         }
 
         /// <exception cref="JsonLD.Core.JsonLdError"></exception>
-        private void Initialize(JToken input, JToken context, JsonLdOptions opts)
+        private async Task InitializeAsync(JToken input, JToken context, JsonLdOptions opts)
         {
             // set option defaults (TODO: clone?)
             // NOTE: sane defaults should be set in JsonLdOptions constructor
@@ -60,7 +65,7 @@ namespace JsonLD.Core
             this.context = new Context(opts);
             if (!context.IsNull())
             {
-                this.context = this.context.Parse(context);
+                this.context = await this.context.ParseAsync(context).ConfigureAwait(false);
             }
         }
 
@@ -430,7 +435,7 @@ namespace JsonLD.Core
         /// <returns></returns>
         /// <exception cref="JsonLdError">JsonLdError</exception>
         /// <exception cref="JsonLD.Core.JsonLdError"></exception>
-        public virtual JToken Expand(Context activeCtx, string activeProperty, JToken element)
+        public virtual async Task<JToken> ExpandAsync(Context activeCtx, string activeProperty, JToken element)
         {
             // 1)
             if (element.IsNull())
@@ -446,7 +451,7 @@ namespace JsonLD.Core
                 foreach (JToken item in (JArray)element)
                 {
                     // 3.2.1)
-                    JToken v = Expand(activeCtx, activeProperty, item);
+                    JToken v = await ExpandAsync(activeCtx, activeProperty, item).ConfigureAwait(false);
                     // 3.2.2)
                     if (("@list".Equals(activeProperty) || "@list".Equals(activeCtx.GetContainer(activeProperty
                         ))) && (v is JArray || (v is JObject && ((IDictionary<string, JToken>)v).ContainsKey
@@ -484,7 +489,7 @@ namespace JsonLD.Core
                     // 5)
                     if (elem.ContainsKey("@context"))
                     {
-                        activeCtx = activeCtx.Parse(elem["@context"]);
+                        activeCtx = await activeCtx.ParseAsync(elem["@context"]).ConfigureAwait(false);
                     }
                     // 6)
                     JObject result = new JObject();
@@ -583,7 +588,7 @@ namespace JsonLD.Core
                                     // 7.4.5)
                                     if ("@graph".Equals(expandedProperty))
                                     {
-                                        expandedValue = Expand(activeCtx, "@graph", value);
+                                        expandedValue = await ExpandAsync(activeCtx, "@graph", value).ConfigureAwait(false);
                                     }
                                     else
                                     {
@@ -637,7 +642,7 @@ namespace JsonLD.Core
                                                             continue;
                                                         }
                                                         // 7.4.9.2)
-                                                        expandedValue = Expand(activeCtx, activeProperty, value);
+                                                        expandedValue = await ExpandAsync(activeCtx, activeProperty, value).ConfigureAwait(false);
                                                         // NOTE: step not in the spec yet
                                                         if (!(expandedValue is JArray))
                                                         {
@@ -660,7 +665,7 @@ namespace JsonLD.Core
                                                         // 7.4.10)
                                                         if ("@set".Equals(expandedProperty))
                                                         {
-                                                            expandedValue = Expand(activeCtx, activeProperty, value);
+                                                            expandedValue = await ExpandAsync(activeCtx, activeProperty, value).ConfigureAwait(false);
                                                         }
                                                         else
                                                         {
@@ -673,7 +678,7 @@ namespace JsonLD.Core
                                                                         );
                                                                 }
                                                                 // 7.4.11.1)
-                                                                expandedValue = Expand(activeCtx, "@reverse", value);
+                                                                expandedValue = await ExpandAsync(activeCtx, "@reverse", value).ConfigureAwait(false);
                                                                 // NOTE: algorithm assumes the result is a map
                                                                 // 7.4.11.2)
                                                                 if (((IDictionary<string, JToken>)expandedValue).ContainsKey("@reverse"))
@@ -744,7 +749,7 @@ namespace JsonLD.Core
                                                                      "@embed".Equals(expandedProperty) || "@embedChildren".Equals(expandedProperty) 
                                                                     || "@omitDefault".Equals(expandedProperty))
                                                                 {
-                                                                    expandedValue = Expand(activeCtx, expandedProperty, value);
+                                                                    expandedValue = await ExpandAsync(activeCtx, expandedProperty, value).ConfigureAwait(false);
                                                                 }
                                                             }
                                                         }
@@ -819,7 +824,7 @@ namespace JsonLD.Core
                                             ((JArray)indexValue).Add(tmp);
                                         }
                                         // 7.6.2.2)
-                                        indexValue = Expand(activeCtx, key, indexValue);
+                                        indexValue = await ExpandAsync(activeCtx, key, indexValue).ConfigureAwait(false);
                                         // 7.6.2.3)
                                         foreach (JObject item in (JArray)indexValue)
                                         {
@@ -836,7 +841,7 @@ namespace JsonLD.Core
                                 else
                                 {
                                     // 7.7)
-                                    expandedValue = Expand(activeCtx, key, value);
+                                    expandedValue = await ExpandAsync(activeCtx, key, value).ConfigureAwait(false);
                                 }
                             }
                         }
@@ -1042,9 +1047,9 @@ namespace JsonLD.Core
         }
 
         /// <exception cref="JsonLD.Core.JsonLdError"></exception>
-        public virtual JToken Expand(Context activeCtx, JToken element)
+        public virtual Task<JToken> ExpandAsync(Context activeCtx, JToken element)
         {
-            return Expand(activeCtx, null, element);
+            return ExpandAsync(activeCtx, null, element);
         }
 
         /// <summary>
