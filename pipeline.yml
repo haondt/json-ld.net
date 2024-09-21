@@ -4,7 +4,6 @@ tasks:
       - source: push
     packages:
       - csproj: ./src/json-ld.net/json-ld.net.csproj
-        framework: netstandard2.0
     registries:
       - gitlab
 
