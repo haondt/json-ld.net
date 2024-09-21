@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading.Tasks;
 using JsonLD.Core;
 using JsonLD.Util;
 using Newtonsoft.Json.Linq;
@@ -885,13 +886,13 @@ namespace JsonLD.Core
         /// <param name="callback">(err, input) called once the operation completes.</param>
         /// <exception cref="JsonLdError">JsonLdError</exception>
         /// <exception cref="JsonLD.Core.JsonLdError"></exception>
-        internal static void ResolveContextUrls(JToken input)
+        internal static Task ResolveContextUrlsAsync(JToken input)
         {
-            Resolve(input, new JObject());
+            return ResolveAsync(input, new JObject());
         }
 
         /// <exception cref="JsonLD.Core.JsonLdError"></exception>
-        private static void Resolve(JToken input, JObject cycles)
+        private static async Task ResolveAsync(JToken input, JObject cycles)
         {
             Pattern regex = Pattern.Compile("(http|https)://(\\w+:{0,1}\\w*@)?(\\S+)(:[0-9]+)?(/|/([\\w#!:.?+=&%@!\\-/]))?"
                 );
@@ -934,13 +935,13 @@ namespace JsonLD.Core
                 _cycles[url_1] = true;
                 try
                 {
-                    JObject ctx = (JObject)new DocumentLoader().LoadDocument(url_1).Document;
+                    JObject ctx = (JObject)(await new DocumentLoader().LoadDocumentAsync(url_1).ConfigureAwait(false)).Document;
                     if (!ctx.ContainsKey("@context"))
                     {
                         ctx = new JObject();
                         ctx["@context"] = new JObject();
                     }
-                    Resolve(ctx, _cycles);
+                    await ResolveAsync(ctx, _cycles).ConfigureAwait(false);
                     urls[url_1] = ctx["@context"];
                     count -= 1;
                     if (count == 0)

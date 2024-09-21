@@ -157,37 +157,37 @@ namespace JsonLD.Test
 
                     if (testType.Any((s) => (string)s == "jld:CompactTest"))
                     {
-                        run = () => JsonLdProcessor.Compact(newCase.input, newCase.context, options);
+                        run = () => JsonLdProcessor.CompactAsync(newCase.input, newCase.context, options).ConfigureAwait(false).GetAwaiter().GetResult();
                     }
                     else if (testType.Any((s) => (string)s == "jld:ExpandTest"))
                     {
-                        run = () => JsonLdProcessor.Expand(newCase.input, options);
+                        run = () => JsonLdProcessor.ExpandAsync(newCase.input, options).GetAwaiter().GetResult();
                     }
                     else if (testType.Any((s) => (string)s == "jld:FlattenTest"))
                     {
-                        run = () => JsonLdProcessor.Flatten(newCase.input, newCase.context, options);
+                        run = () => JsonLdProcessor.FlattenAsync(newCase.input, newCase.context, options).ConfigureAwait(false).GetAwaiter().GetResult();
                     }
                     else if (testType.Any((s) => (string)s == "jld:FrameTest"))
                     {
-                        run = () => JsonLdProcessor.Frame(newCase.input, newCase.frame, options);
+                        run = () => JsonLdProcessor.FrameAsync(newCase.input, newCase.frame, options).GetAwaiter().GetResult();
                     }
                     else if (testType.Any((s) => (string)s == "jld:NormalizeTest"))
                     {
                         run = () => new JValue(
-                                RDFDatasetUtils.ToNQuads((RDFDataset)JsonLdProcessor.Normalize(newCase.input, options)).Replace("\n", "\r\n")
+                                RDFDatasetUtils.ToNQuads((RDFDataset)JsonLdProcessor.NormalizeAsync(newCase.input, options).GetAwaiter().GetResult()).Replace("\n", "\r\n")
                             );
                     }
                     else if (testType.Any((s) => (string)s == "jld:ToRDFTest"))
                     {
                         options.format = "application/nquads";
                         run = () => new JValue(
-                            ((string)JsonLdProcessor.ToRDF(newCase.input, options)).Replace("\n", "\r\n")
+                            ((string)JsonLdProcessor.ToRDFAsync(newCase.input, options).GetAwaiter().GetResult()).Replace("\n", "\r\n")
                         );
                     }
                     else if (testType.Any((s) => (string)s == "jld:FromRDFTest"))
                     {
                         options.format = "application/nquads";
-                        run = () => JsonLdProcessor.FromRDF(newCase.input,options);
+                        run = () => JsonLdProcessor.FromRDFAsync(newCase.input, options).GetAwaiter().GetResult();
                     }
                     else
                     {
@@ -199,7 +199,7 @@ namespace JsonLD.Test
                         Func<JToken> innerRun = run;
                         run = () =>
                         {
-                            var remoteDoc = options.documentLoader.LoadDocument("https://json-ld.org/test-suite/tests/" + (string)testcase["input"]);
+                            var remoteDoc = options.documentLoader.LoadDocumentAsync("https://json-ld.org/test-suite/tests/" + (string)testcase["input"]).ConfigureAwait(false).GetAwaiter().GetResult();
                             newCase.input = remoteDoc.Document;
                             options.SetBase(remoteDoc.DocumentUrl);
                             options.SetExpandContext((JObject)remoteDoc.Context);
