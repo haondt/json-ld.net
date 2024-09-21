@@ -71,8 +71,8 @@ namespace JsonLD.Test
         {
             get
             {
-                var manifest = JsonLdProcessor.FromRDF(File.ReadAllText(ManifestPath), new TurtleRDFParser());
-                var framed = JsonLdProcessor.Frame(manifest, ManifestFrame, new JsonLdOptions());
+                var manifest = JsonLdProcessor.FromRDFAsync(File.ReadAllText(ManifestPath), new TurtleRDFParser()).ConfigureAwait(false).GetAwaiter().GetResult();
+                var framed = JsonLdProcessor.FrameAsync(manifest, ManifestFrame, new JsonLdOptions()).ConfigureAwait(false).GetAwaiter().GetResult();
 
                 return from testCase in framed["@graph"][0]["mf:entries"]
                        where (string)testCase["@type"] != "rdft:TestNQuadsNegativeSyntax"
@@ -84,8 +84,8 @@ namespace JsonLD.Test
         {
             get
             {
-                var manifest = JsonLdProcessor.FromRDF(File.ReadAllText(ManifestPath), new TurtleRDFParser());
-                var framed = JsonLdProcessor.Frame(manifest, ManifestFrame, new JsonLdOptions());
+                var manifest = JsonLdProcessor.FromRDFAsync(File.ReadAllText(ManifestPath), new TurtleRDFParser()).ConfigureAwait(false).GetAwaiter().GetResult();
+                var framed = JsonLdProcessor.FrameAsync(manifest, ManifestFrame, new JsonLdOptions()).ConfigureAwait(false).GetAwaiter().GetResult();
 
                 return from testCase in framed["@graph"][0]["mf:entries"]
                        where (string)testCase["@type"] == "rdft:TestNQuadsNegativeSyntax"

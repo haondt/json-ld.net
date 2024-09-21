@@ -84,11 +84,11 @@ namespace JsonLD.Demo
 {
     internal class Program
     {
-        private static void Main()
+        private static async Task Main()
         {
             var json = "{'@context':{'test':'http://www.test.com/'},'test:hello':'world'}";
             var document = JObject.Parse(json);
-            var expanded = JsonLdProcessor.Expand(document);
+            var expanded = await JsonLdProcessor.ExpandAsync(document);
             Console.WriteLine(expanded);
         }
     }
@@ -143,7 +143,7 @@ also typically easier to read for humans.
 var doc = JObject.Parse(_docJson);
 var context = JObject.Parse(_contextJson);
 var opts = new JsonLdOptions();
-var compacted = JsonLdProcessor.Compact(doc, context, opts);
+var compacted = await JsonLdProcessor.CompactAsync(doc, context, opts);
 Console.WriteLine(compacted);
 
 /*
@@ -173,7 +173,7 @@ IRIs, types, and values are expanded so that the @context is no longer
 necessary.
 
 ```csharp
-var expanded = JsonLdProcessor.Expand(compacted);
+var expanded = await JsonLdProcessor.ExpandAsync(compacted);
 Console.WriteLine(expanded);
 
 /*
@@ -227,7 +227,7 @@ certain applications.
 var doc = JObject.Parse(_docJson);
 var context = JObject.Parse(_contextJson);
 var opts = new JsonLdOptions();
-var flattened = JsonLdProcessor.Flatten(doc, context, opts);
+var flattened = await JsonLdProcessor.FlattenAsync(doc, context, opts);
 Console.WriteLine(flattened);
 
 /*
@@ -292,7 +292,7 @@ And we use it like this:
 var doc = JObject.Parse(_docJson);
 var frame = JObject.Parse(_frameJson);
 var opts = new JsonLdOptions();
-var flattened = JsonLdProcessor.Frame(doc, frame, opts);
+var flattened = await JsonLdProcessor.FrameAsync(doc, frame, opts);
 Console.WriteLine(flattened);
 
 /*
@@ -324,7 +324,7 @@ comparison, etc.
 ```csharp
 var doc = JObject.Parse(_docJson);
 var opts = new JsonLdOptions();
-var normalized = (RDFDataset)JsonLdProcessor.Normalize(doc, opts);
+var normalized = (RDFDataset)(await JsonLdProcessor.NormalizeAsync(doc, opts));
 Console.WriteLine(normalized.Dump());
 
 /*
@@ -417,7 +417,7 @@ The processor's `ToRDF` method carries out these steps for you, like this:
 ```csharp
 var doc = JObject.Parse(_docJson);
 var opts = new JsonLdOptions();
-var rdf = (RDFDataset)JsonLdProcessor.ToRDF(doc, opts);
+var rdf = (RDFDataset)(await JsonLdProcessor.ToRDFAsync(doc, opts));
 
 var serialized = RDFDatasetUtils.ToNQuads(rdf); // serialize RDF to string
 Console.WriteLine(serialized);
@@ -448,7 +448,7 @@ internal static void Run()
 {
     var doc = JObject.Parse(_docJson);
     var callback = new JSONLDTripleCallback();
-    var serialized = JsonLdProcessor.ToRDF(doc, callback);
+    var serialized = await JsonLdProcessor.ToRDFAsync(doc, callback);
     Console.WriteLine(serialized);
 
     /*
@@ -481,7 +481,7 @@ the code in the `ToRDF` example above_
 
 ```csharp
 var opts = new JsonLdOptions();
-var jsonld = JsonLdProcessor.FromRDF(serialized, opts);
+var jsonld = await JsonLdProcessor.FromRDFAsync(serialized, opts);
 Console.WriteLine(jsonld);
 
 /*
@@ -539,10 +539,10 @@ private class CustomRDFParser : IRDFParser
     }
 }
 
-internal static void Run()
+internal static async Task Run()
 {
     var parser = new CustomRDFParser();
-    var jsonld = JsonLdProcessor.FromRDF(_serialized, parser);
+    var jsonld = await JsonLdProcessor.FromRDFAsync(_serialized, parser);
     Console.WriteLine(jsonld);
 
     /*
@@ -599,26 +599,26 @@ public class CustomDocumentLoader : DocumentLoader
 {
     private static readonly string _cachedExampleOrgContext = Res.ReadString("context.json");
 
-    public override RemoteDocument LoadDocument(string url)
+    public override Task<RemoteDocument> LoadDocumentAsync(string url)
     {
         if (url == "http://example.org/context.jsonld") // we have this cached locally
         {
             var doc = new JObject(new JProperty("@context", JObject.Parse(_cachedExampleOrgContext)));
-            return new RemoteDocument(url, doc);
+            return Task.FromResult(new RemoteDocument(url, doc));
         }
         else
         {
-            return base.LoadDocument(url);
+            return base.LoadDocumentAsync(url);
         }
     }
 }
 
-public static void Run()
+public static async Task Run()
 {
     var doc = JObject.Parse(_docJson);
     var remoteContext = JObject.Parse("{'@context':'http://example.org/context.jsonld'}");
     var opts = new JsonLdOptions { documentLoader = new CustomDocumentLoader() };
-    var compacted = JsonLdProcessor.Compact(doc, remoteContext, opts);
+    var compacted = await JsonLdProcessor.CompactAsync(doc, remoteContext, opts);
     Console.WriteLine(compacted);
 
     /*
